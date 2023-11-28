@@ -36,7 +36,7 @@ def start_client():
                 client.close()
                 break
             elif connected:
-                client.send(message.encode('utf-8'))
+                client.send(message.encode('utf-8'))  # Send all messages to the server
             else:
                 print("[CLIENT] Not connected to a server.")
 
@@ -67,4 +67,5 @@ def start_client():
         client.close()
 
 # Start the client
-start_client()
+if __name__ == "__main__":
+    start_client()
