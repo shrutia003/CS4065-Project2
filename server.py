@@ -16,6 +16,7 @@ def handle_client(client_socket, clients, messages, groups):
     while True:
         try:
             message = client_socket.recv(1024).decode('utf-8')
+            print(f"[SERVER] Received message: {message}")  # Debugging output
 
             if message.startswith('%post'):
                 post_message(username, message, clients, messages)
