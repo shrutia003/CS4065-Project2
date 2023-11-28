@@ -2,45 +2,69 @@ import socket
 import threading
 import sys
 
-# Function to handle user input and send messages to the server
-def user_input(client_socket):
-    try:
-        while True:
-            message = input()
-            client_socket.send(message.encode('utf-8'))
-            if message.lower() == '%exit':
-                break
-    except KeyboardInterrupt:
-        pass
-
-# Function to receive and display messages from the server
-def receive_messages(client_socket):
-    try:
-        while True:
-            message = client_socket.recv(1024).decode('utf-8')
-            print(message)
-    except ConnectionResetError:
-        print("[CLIENT] Connection to the server lost.")
-        sys.exit()
-
 # Main client function
 def start_client():
+    running = [True]
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect(('127.0.0.1', 12345))  # Connect to the server IP and port
 
-    print('[CLIENT] Connected to the server.')
+    # Flag to track the connection status
+    connected = False
 
-    # Create separate threads for handling user input and receiving messages
-    input_thread = threading.Thread(target=user_input, args=(client,))
-    receive_thread = threading.Thread(target=receive_messages, args=(client,))
+    # Get the desired username from the user
+    username = input("Enter your username: ")
 
+    # Send the username once connected
+    def send_username():
+        client.send(username.encode('utf-8'))
+
+    # Function to handle user input and send messages to the server
+    def user_input():
+        nonlocal connected
+        while True:
+            message = input()
+            if message.startswith('%connect') and not connected:
+                _, address, port = message.split(' ')
+                try:
+                    client.connect((address, int(port)))
+                    print(f"[CLIENT] Connected to {address}:{port}")
+                    send_username()
+                    connected = True
+                    start_receiving()  # Start receiving messages after connection
+                except Exception as e:
+                    print(f"[ERROR] Failed to connect: {e}")
+            elif message.lower() == '%exit':
+                client.close()
+                break
+            elif connected:
+                client.send(message.encode('utf-8'))
+            else:
+                print("[CLIENT] Not connected to a server.")
+
+    # Function to receive and display messages from the server
+    def receive_messages():
+        while running[0]:
+            try:
+                message = client.recv(1024).decode('utf-8')
+                print(message)
+            except ConnectionResetError:
+                print("[CLIENT] Connection to the server lost.")
+                break
+            except ConnectionAbortedError:
+                print("[CLIENT] Connection to the server lost.")
+                break
+
+    # Function to start receiving messages
+    def start_receiving():
+        receive_thread = threading.Thread(target=receive_messages)
+        receive_thread.start()
+
+    # Create thread for handling user input
+    input_thread = threading.Thread(target=user_input)
     input_thread.start()
-    receive_thread.start()
-
     input_thread.join()
-    receive_thread.join()
 
-    client.close()
+    if connected:
+        client.close()
 
 # Start the client
 start_client()

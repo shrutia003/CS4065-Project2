@@ -4,7 +4,6 @@ import time
 
 # Function to handle client connections
 def handle_client(client_socket, clients, messages):
-    # Placeholder logic for handling a new client
     username = client_socket.recv(1024).decode('utf-8')  # Receive the username from the client
     clients.append((username, client_socket))  # Add the client to the list
 
@@ -14,20 +13,21 @@ def handle_client(client_socket, clients, messages):
     while True:
         try:
             message = client_socket.recv(1024).decode('utf-8')
-            if message == 'leave':
+
+            if message.startswith('%post'):
+                post_message(username, message, clients, messages)
+            elif message == '%users':
+                send_user_list(client_socket, clients)
+            elif message.startswith('%message'):
+                send_specific_message(client_socket, messages, message.split(' ')[1])
+            elif message == '%leave':
                 clients.remove((username, client_socket))
                 broadcast(f"[SERVER] {username} has left the group.", clients, client_socket)
                 break
-            elif message.startswith('post'):
-                # Extract the message content and post it to the group
-                post_message(username, message, clients, messages)
-            elif message == 'retrieve':
-                # Retrieve the last 2 messages and send them to the client
-                retrieve_messages(client_socket, clients, messages)
             else:
                 broadcast(f"{username}: {message}", clients, client_socket)
+
         except ConnectionResetError:
-            # Handle client disconnection
             clients.remove((username, client_socket))
             broadcast(f"[SERVER] {username} has left the group.", clients, client_socket)
             break
@@ -39,39 +39,40 @@ def broadcast(message, clients, sender_socket):
             try:
                 client_socket.send(message.encode('utf-8'))
             except:
-                # Handle any potential errors while sending the message
-                pass
+                pass  # Handle any potential errors while sending the message
 
 # Function to post a message to the group
 def post_message(username, message, clients, messages):
-    # Extract the message content from the command (assuming the format is "post subject content")
-    _, subject, content = message.split(' ', 2)
+    parts = message.split(' ', 2)
+    if len(parts) == 3 and parts[0] == '%post':
+        _, subject, content = parts
 
-    # Generate a unique message ID (for simplicity, using the current timestamp)
-    message_id = int(time.time() * 1000)
+        message_id = int(time.time() * 1000)
+        formatted_message = f"{message_id}, {username}, {time.strftime('%Y-%m-%d %H:%M:%S')}, {subject}: {content}"
+        formatted_messaged = f"{message_id}, {username}, {time.strftime('%Y-%m-%d %H:%M:%S')}, {subject}"
+        messages.append(formatted_message)
+        broadcast(formatted_messaged, clients, None)
+    else:
+        print(f"Invalid post format: {message}")
 
-    # Create the message string in the specified format
-    formatted_message = f"{message_id}, {username}, {time.strftime('%Y-%m-%d %H:%M:%S')}, {subject}"
+# Function to send a list of users to a client
+def send_user_list(client_socket, clients):
+    users = [username for username, _ in clients]
+    user_list = ", ".join(users)
+    client_socket.send(f"[SERVER] Current users: {user_list}".encode('utf-8'))
 
-    # Add the message to the list
-    messages.append(formatted_message)
-
-    # Broadcast the message to all clients in the group
-    broadcast(formatted_message, clients, None)
-
-# Function to retrieve the last 2 messages and send them to the client
-def retrieve_messages(client_socket, clients, messages):
-    # Get the last 2 messages
-    recent_messages = messages[-2:]
-
-    # Send the messages to the client
-    for msg in recent_messages:
-        try:
-            client_socket.send(msg.encode('utf-8'))
-        except Exception as e:
-            print(f"[ERROR] Failed to send message to client: {e}")
-            pass
-
+# Function to send a specific message by ID
+def send_specific_message(client_socket, messages, message_id):
+    message_id = int(message_id)
+    for message in messages:
+        # Split the message string into components
+        parts = message.split(', ', 3)
+        if len(parts) == 4 and int(parts[0]) == message_id:
+            # Extracting the content from the last part
+            content = parts[3].split(': ', 1)[1] if ': ' in parts[3] else parts[3]
+            client_socket.send(content.encode('utf-8'))
+            return
+    client_socket.send("[SERVER] Message not found.".encode('utf-8'))
 # Main server function
 def start_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -86,10 +87,10 @@ def start_server():
     while True:
         client_socket, addr = server.accept()
         print(f'[SERVER] Accepted connection from {addr}')
-        
-        # Create a new thread to handle the client
+
         client_handler = threading.Thread(target=handle_client, args=(client_socket, clients, messages))
         client_handler.start()
 
 # Start the server
-start_server()
+if __name__ == "__main__":
+    start_server()
