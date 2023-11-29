@@ -3,7 +3,7 @@ import threading
 import time
 
 # Initialize the groups
-groups = {'group1': [], 'group2': [], 'group3': [], 'group4': [], 'group5': []}
+groups = {'group1': {'clients': [], 'messages': []}, 'group2': {'clients': [], 'messages': []}, 'group3': {'clients': [], 'messages': []}, 'group4': {'clients': [], 'messages': []}, 'group5': {'clients': [], 'messages': []}}
 
 # Function to handle client connections
 def handle_client(client_socket, clients, messages, groups):
@@ -57,7 +57,7 @@ def broadcast(message, clients, sender_socket):
             except:
                 pass  # Handle any potential errors while sending the message
 
-# Function to post a message to the group
+# Function to post a message to the server
 def post_message(username, message, clients, messages):
     parts = message.split(' ', 2)
     if len(parts) == 3 and parts[0] == '%post':
@@ -99,7 +99,7 @@ def send_group_list(client_socket, groups):
 def join_group(username, client_socket, message, clients, groups):
     _, group_name = message.split(' ')
     if group_name in groups:
-        groups[group_name].append((username, client_socket))
+        groups[group_name]['clients'].append((username, client_socket))
         client_socket.send(f"[SERVER] You have joined {group_name}.".encode('utf-8'))
     else:
         client_socket.send("[SERVER] Group not found.".encode('utf-8'))
@@ -114,31 +114,33 @@ def post_group_message(username, client_socket, message, clients, groups):
             message_id = int(time.time() * 1000)
             formatted_message = f"{message_id}, {username}, {time.strftime('%Y-%m-%d %H:%M:%S')}, {subject}: {content}"
             formatted_messaged = f"{message_id}, {username}, {time.strftime('%Y-%m-%d %H:%M:%S')}, {subject}"
-            messages.append(formatted_message)
-            broadcast(formatted_messaged, groups[group_name], None)
+            groups[group_name]['messages'].append(formatted_message)  # Append the message to the group's message list
+            broadcast(formatted_messaged, groups[group_name]['clients'], None)
         else:
             client_socket.send("[SERVER] Group not found.".encode('utf-8'))
-    else:
-        print(f"Invalid post format: {message}")
+
+
 
 # Function to send a list of users in a group to a client
 def send_group_user_list(client_socket, message, groups):
     _, group_name = message.split(' ')
     if group_name in groups:
-        users = [username for username, _ in groups[group_name]]
+        users = [username for username, _ in groups[group_name]['clients']]
         user_list = ", ".join(users)
         client_socket.send(f"[SERVER] Users in {group_name}: {user_list}".encode('utf-8'))
     else:
         client_socket.send("[SERVER] Group not found.".encode('utf-8'))
 
+
 # Function to leave a group
 def leave_group(username, client_socket, message, clients, groups):
     _, group_name = message.split(' ')
     if group_name in groups:
-        groups[group_name].remove((username, client_socket))
+        groups[group_name]['clients'].remove((username, client_socket))
         client_socket.send(f"[SERVER] You have left {group_name}.".encode('utf-8'))
     else:
         client_socket.send("[SERVER] Group not found.".encode('utf-8'))
+
 
 # Function to send a specific message by ID from a group
 def send_group_specific_message(client_socket, message, groups):
@@ -148,7 +150,7 @@ def send_group_specific_message(client_socket, message, groups):
         message_id = int(message_id)
 
         if group_name in groups:
-            for message in messages:
+            for message in groups[group_name]['messages']:
                 # Split the message string into components
                 parts = message.split(', ', 3)
                 if len(parts) == 4 and int(parts[0]) == message_id:
@@ -159,6 +161,7 @@ def send_group_specific_message(client_socket, message, groups):
             client_socket.send("[SERVER] Message not found.".encode('utf-8'))
         else:
             client_socket.send("[SERVER] Group not found.".encode('utf-8'))
+
 
 # Main server function
 def start_server():
