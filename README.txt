@@ -44,7 +44,7 @@ Terminal 2 (client1):
 	2 %connect 127.0.0.1 12345
 	7 %post message content
 	8 %exit
-	11 %python client.py
+	11 python client.py
 	12 %connect 127.0.0.1 12345
 	17 %groupjoin group1
 	20 %grouppost group1 message content
@@ -55,7 +55,7 @@ Terminal 3 (client2):
 	3 python client.py
 	4 %connect 127.0.0.1 12345
 	9 %exit
-	13 %python client.py
+	13 python client.py
 	14 %connect 127.0.0.1 12345
 	18 %groupjoin group2
 	21 %grouppost group2 message2 content2
@@ -69,7 +69,7 @@ Terminal 4 (client3):
 	5 python client.py
 	6 %connect 127.0.0.1 12345
 	10 %exit
-	15 %python client.py
+	15 python client.py
 	16 %connect 127.0.0.1 12345
 	19 %groupjoin group2
 	29 %groupleave group2

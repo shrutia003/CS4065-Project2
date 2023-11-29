@@ -11,7 +11,7 @@ def handle_client(client_socket, clients, messages, groups):
     clients.append((username, client_socket))  # Add the client to the list
 
     # Notify all clients about the new user
-    broadcast(f"[SERVER] {username} has joined the group.", clients, client_socket)
+    broadcast(f"[SERVER] {username} has joined the server.", clients, client_socket)
     send_group_list(client_socket, groups)
 
     while True:
@@ -46,7 +46,7 @@ def handle_client(client_socket, clients, messages, groups):
 
         except ConnectionResetError:
             clients.remove((username, client_socket))
-            broadcast(f"[SERVER] {username} has left the group.", clients, client_socket)
+            broadcast(f"[SERVER] {username} has left the server.", clients, client_socket)
             break
 
 
