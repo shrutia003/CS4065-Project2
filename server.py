@@ -11,7 +11,8 @@ def handle_client(client_socket, clients, messages, groups):
     clients.append((username, client_socket))  # Add the client to the list
 
     # Notify all clients about the new user
-    broadcast(f"[SERVER] {username} has joined the server.", clients, client_socket)
+    broadcast(f"[SERVER] {username} has joined the group.", clients, client_socket)
+    send_group_list(client_socket, groups)
 
     while True:
         try:
@@ -26,7 +27,7 @@ def handle_client(client_socket, clients, messages, groups):
                 send_specific_message(client_socket, messages, message.split(' ')[1])
             elif message == '%leave':
                 clients.remove((username, client_socket))
-                broadcast(f"[SERVER] {username} has left the server.", clients, client_socket)
+                broadcast(f"[SERVER] {username} has left the group.", clients, client_socket)
                 break
             elif message.startswith('%groups'):
                 send_group_list(client_socket, groups)
@@ -35,11 +36,11 @@ def handle_client(client_socket, clients, messages, groups):
             elif message.startswith('%grouppost'):
                 post_group_message(username, client_socket, message, clients, groups)
             elif message.startswith('%groupusers'):
-                send_group_user_list(client_socket, message, groups)
+                send_group_user_list(username, client_socket, message, groups)
             elif message.startswith('%groupleave'):
                 leave_group(username, client_socket, message, clients, groups)
             elif message.startswith('%groupmessage'):
-                send_group_specific_message(client_socket, message, groups)
+                send_group_specific_message(username, client_socket, message, groups)
             else:
                 broadcast(f"{username}: {message}", clients, client_socket)
 
@@ -47,6 +48,8 @@ def handle_client(client_socket, clients, messages, groups):
             clients.remove((username, client_socket))
             broadcast(f"[SERVER] {username} has left the group.", clients, client_socket)
             break
+
+
 
 # Function to broadcast a message to all clients except the sender
 def broadcast(message, clients, sender_socket):
@@ -120,46 +123,49 @@ def post_group_message(username, client_socket, message, clients, groups):
     if len(parts) == 4 and parts[0] == '%grouppost':
         group_name, subject, content = parts[1:]
 
-        if group_name in groups:
+        if group_name in groups and (username, client_socket) in groups[group_name]['clients']:
             message_id = int(time.time() * 1000)
             formatted_message = f"{message_id}, {username}, {time.strftime('%Y-%m-%d %H:%M:%S')}, {subject}: {content}"
             formatted_messaged = f"{message_id}, {username}, {time.strftime('%Y-%m-%d %H:%M:%S')}, {subject}"
             groups[group_name]['messages'].append(formatted_message)  # Append the message to the group's message list
             broadcast(formatted_messaged, groups[group_name]['clients'], None)
         else:
-            client_socket.send("[SERVER] Group not found.".encode('utf-8'))
-
+            client_socket.send("[SERVER] You are not a member of this group.".encode('utf-8'))
+    else:
+        print(f"Invalid post format: {message}")
 
 
 # Function to send a list of users in a group to a client
-def send_group_user_list(client_socket, message, groups):
+def send_group_user_list(username, client_socket, message, groups):
     _, group_name = message.split(' ')
-    if group_name in groups:
+    if group_name in groups and (username, client_socket) in groups[group_name]['clients']:
         users = [username for username, _ in groups[group_name]['clients']]
         user_list = ", ".join(users)
         client_socket.send(f"[SERVER] Users in {group_name}: {user_list}".encode('utf-8'))
     else:
-        client_socket.send("[SERVER] Group not found.".encode('utf-8'))
-
+        client_socket.send("[SERVER] You are not a member of this group.".encode('utf-8'))
 
 # Function to leave a group
 def leave_group(username, client_socket, message, clients, groups):
     _, group_name = message.split(' ')
-    if group_name in groups:
+    if group_name in groups and (username, client_socket) in groups[group_name]['clients']:
         groups[group_name]['clients'].remove((username, client_socket))
         client_socket.send(f"[SERVER] You have left {group_name}.".encode('utf-8'))
     else:
-        client_socket.send("[SERVER] Group not found.".encode('utf-8'))
+        client_socket.send("[SERVER] You are not a member of this group.".encode('utf-8'))
+
+
+
 
 
 # Function to send a specific message by ID from a group
-def send_group_specific_message(client_socket, message, groups):
+def send_group_specific_message(username, client_socket, message, groups):
     parts = message.split(' ')
     if len(parts) == 3 and parts[0] == '%groupmessage':
         group_name, message_id = parts[1:]
         message_id = int(message_id)
 
-        if group_name in groups:
+        if group_name in groups and (username, client_socket) in groups[group_name]['clients']:
             for message in groups[group_name]['messages']:
                 # Split the message string into components
                 parts = message.split(', ', 3)
@@ -170,7 +176,7 @@ def send_group_specific_message(client_socket, message, groups):
                     return
             client_socket.send("[SERVER] Message not found.".encode('utf-8'))
         else:
-            client_socket.send("[SERVER] Group not found.".encode('utf-8'))
+            client_socket.send("[SERVER] You are not a member of this group.".encode('utf-8'))
 
 
 # Main server function
