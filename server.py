@@ -104,6 +104,7 @@ def join_group(username, client_socket, message, clients, groups):
     if group_name in groups:
         groups[group_name]['clients'].append((username, client_socket))
         client_socket.send(f"[SERVER] You have joined {group_name}.".encode('utf-8'))
+        broadcast(f"[SERVER] {username} has joined {group_name}.", groups[group_name]['clients'], client_socket)
     else:
         client_socket.send("[SERVER] Group not found.".encode('utf-8'))
 
