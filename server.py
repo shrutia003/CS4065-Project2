@@ -11,7 +11,7 @@ def handle_client(client_socket, clients, messages, groups):
     clients.append((username, client_socket))  # Add the client to the list
 
     # Notify all clients about the new user
-    broadcast(f"[SERVER] {username} has joined the group.", clients, client_socket)
+    broadcast(f"[SERVER] {username} has joined the server.", clients, client_socket)
 
     while True:
         try:
@@ -26,18 +26,18 @@ def handle_client(client_socket, clients, messages, groups):
                 send_specific_message(client_socket, messages, message.split(' ')[1])
             elif message == '%leave':
                 clients.remove((username, client_socket))
-                broadcast(f"[SERVER] {username} has left the group.", clients, client_socket)
+                broadcast(f"[SERVER] {username} has left the server.", clients, client_socket)
                 break
             elif message.startswith('%groups'):
                 send_group_list(client_socket, groups)
             elif message.startswith('%groupjoin'):
-                join_group(username, message, clients, groups)
+                join_group(username, client_socket, message, clients, groups)
             elif message.startswith('%grouppost'):
-                post_group_message(username, message, clients, groups)
+                post_group_message(username, client_socket, message, clients, groups)
             elif message.startswith('%groupusers'):
                 send_group_user_list(client_socket, message, groups)
             elif message.startswith('%groupleave'):
-                leave_group(username, message, clients, groups)
+                leave_group(username, client_socket, message, clients, groups)
             elif message.startswith('%groupmessage'):
                 send_group_specific_message(client_socket, message, groups)
             else:
@@ -96,7 +96,7 @@ def send_group_list(client_socket, groups):
     client_socket.send(f"[SERVER] Available groups: {group_list}".encode('utf-8'))
 
 # Function to join a group
-def join_group(username, message, clients, groups):
+def join_group(username, client_socket, message, clients, groups):
     _, group_name = message.split(' ')
     if group_name in groups:
         groups[group_name].append((username, client_socket))
@@ -105,7 +105,7 @@ def join_group(username, message, clients, groups):
         client_socket.send("[SERVER] Group not found.".encode('utf-8'))
 
 # Function to post a message to a group
-def post_group_message(username, message, clients, groups):
+def post_group_message(username, client_socket, message, clients, groups):
     parts = message.split(' ', 3)
     if len(parts) == 4 and parts[0] == '%grouppost':
         group_name, subject, content = parts[1:]
@@ -132,7 +132,7 @@ def send_group_user_list(client_socket, message, groups):
         client_socket.send("[SERVER] Group not found.".encode('utf-8'))
 
 # Function to leave a group
-def leave_group(username, message, clients, groups):
+def leave_group(username, client_socket, message, clients, groups):
     _, group_name = message.split(' ')
     if group_name in groups:
         groups[group_name].remove((username, client_socket))
