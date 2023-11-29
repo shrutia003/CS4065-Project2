@@ -98,6 +98,15 @@ def send_group_list(client_socket, groups):
     group_list = ", ".join(groups.keys())
     client_socket.send(f"[SERVER] Available groups: {group_list}".encode('utf-8'))
 
+# Function to send the last 2 messages to a client after they join a group
+def send_last_2_messages(client_socket, group_messages):
+    recent_messages = group_messages[-2:]
+    for message in recent_messages:
+        try:
+            client_socket.send(message.encode('utf-8'))
+        except:
+            pass
+
 # Function to join a group
 def join_group(username, client_socket, message, clients, groups):
     _, group_name = message.split(' ')
@@ -105,6 +114,7 @@ def join_group(username, client_socket, message, clients, groups):
         groups[group_name]['clients'].append((username, client_socket))
         client_socket.send(f"[SERVER] You have joined {group_name}.".encode('utf-8'))
         broadcast(f"[SERVER] {username} has joined {group_name}.", groups[group_name]['clients'], client_socket)
+        send_last_2_messages(client_socket, groups[group_name]['messages'])
     else:
         client_socket.send("[SERVER] Group not found.".encode('utf-8'))
 
